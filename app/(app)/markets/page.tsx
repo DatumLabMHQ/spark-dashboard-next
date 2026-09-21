@@ -3,7 +3,15 @@ import { PageHeader } from '@/components/page-header';
 import { loadOverview } from '@/lib/data';
 import { pct } from '@/lib/format';
 
-export const revalidate = 300;
+// Rendered per request, not prerendered at build.
+//
+// These pages read a third-party API (DefiLlama and friends) through this dashboard's own data
+// layer. With `revalidate` alone Next prerenders them during `next build`, which couples every
+// deploy to that API being up: a single upstream blip fails the build outright, which is exactly
+// what happened on the first deploy of this app. The loaders deliberately throw rather than
+// return zeros, so a runtime failure renders the kit's error page instead of publishing a made-up
+// number. The data layer's own TTL memo keeps repeat requests off the wire.
+export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Markets' };
 
 export default async function Markets() {

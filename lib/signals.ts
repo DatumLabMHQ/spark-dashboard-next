@@ -76,7 +76,7 @@ export interface SignalsPayload {
   degraded?: string[]
 }
 
-async function fetchJson<T = any>(base: string, path: string): Promise<T | null> {
+async function fetchJson<T = unknown>(base: string, path: string): Promise<T | null> {
   try {
     const res = await fetch(`${base}${path}`, { cache: "no-store" })
     if (!res.ok) return null
@@ -171,13 +171,56 @@ function decompose(
   return { value, prior, components }
 }
 
+/** One month of the income statement: product name -> gross and net. */
+interface MonthlyRow {
+  month?: string
+  products?: Record<string, { gross?: number; net?: number }>
+}
+
 /** Sum the net line across every product in one monthly row. */
-function monthNet(row: any): number {
+function monthNet(row: MonthlyRow | undefined): number {
   const products = row?.products ?? {}
-  return Object.values<any>(products).reduce(
-    (a, p) => a + (Number.isFinite(p?.net) ? p.net : 0),
+  return Object.values(products).reduce(
+    (a, p) => a + (Number.isFinite(p?.net) ? (p.net as number) : 0),
     0,
   )
+}
+
+/**
+ * Response shapes, narrowed to just the fields this feed reads. Structural rather than exhaustive,
+ * so the routes can return more without breaking the feed, and `any` stays out of the file.
+ */
+interface BuybacksResp {
+  treasury?: { totalUSD?: number }
+  threshold?: { cushionUSD?: number; cushionMonths?: number | null }
+}
+interface EcosystemResp {
+  current?: { total?: number; savings?: number; sparklend?: number; sll?: number }
+}
+interface PeersResp {
+  currentSparkShare?: number
+  daily?: Array<{ date?: number; sparklend?: number }>
+  current?: Array<{ slug?: string; name?: string; borrow?: number; share?: number }>
+}
+interface PeerRevenueResp {
+  peers?: Array<{ isSpark?: boolean; yoyPct?: number }>
+  sll?: { yoyPct?: number }
+}
+interface BookSide {
+  tokensInUsd?: TokenPoint[]
+  tokens?: TokenPoint[]
+}
+interface FinancialsResp {
+  monthly?: MonthlyRow[]
+  buybackDaily?: Array<{ totalSpkBought?: number; totalUsdsSpent?: number }>
+  meta?: { latestMonthIsPartial?: boolean }
+}
+interface SparkLendResp {
+  supply?: BookSide
+  borrow?: BookSide
+}
+interface SpkTokenResp {
+  current?: { price?: number; mcap?: number }
 }
 
 export async function buildSignals(originBase: string): Promise<SignalsPayload> {
@@ -185,13 +228,13 @@ export async function buildSignals(originBase: string): Promise<SignalsPayload> 
   const metrics: SignalMetric[] = []
 
   const [buybacks, ecosystem, peers, peerRevenue, financials, spkToken, book] = await Promise.all([
-    fetchJson(originBase, "/api/buybacks"),
-    fetchJson(originBase, "/api/ecosystem"),
-    fetchJson(originBase, "/api/peers"),
-    fetchJson(originBase, "/api/peer-revenue"),
-    fetchJson(originBase, "/api/financials"),
-    fetchJson(originBase, "/api/spk-token"),
-    fetchJson(originBase, "/api/sparklend"),
+    fetchJson<BuybacksResp>(originBase, "/api/buybacks"),
+    fetchJson<EcosystemResp>(originBase, "/api/ecosystem"),
+    fetchJson<PeersResp>(originBase, "/api/peers"),
+    fetchJson<PeerRevenueResp>(originBase, "/api/peer-revenue"),
+    fetchJson<FinancialsResp>(originBase, "/api/financials"),
+    fetchJson<SpkTokenResp>(originBase, "/api/spk-token"),
+    fetchJson<SparkLendResp>(originBase, "/api/sparklend"),
   ])
 
   const push = (
@@ -241,7 +284,7 @@ export async function buildSignals(originBase: string): Promise<SignalsPayload> 
     // the Euler and Fluid feeds report multichain aggregates. /api/peers is one
     // source, one chain, one measure across all six venues, so shares derived
     // from it actually sum to 100% and a ranking between them means something.
-    const current: any[] = Array.isArray(peers.current) ? peers.current : []
+    const current = Array.isArray(peers.current) ? peers.current : []
     for (const row of current) {
       if (!row?.slug) continue
       const id = String(row.slug).replace(/-/g, "_")
@@ -285,7 +328,7 @@ export async function buildSignals(originBase: string): Promise<SignalsPayload> 
 
   // ── Revenue and cumulative buybacks ───────────────────────────────────────
   if (financials) {
-    const monthly: any[] = Array.isArray(financials.monthly) ? financials.monthly : []
+    const monthly = Array.isArray(financials.monthly) ? financials.monthly : []
 
     // meta.latestMonthIsPartial is set because Distribution Rewards settle as a
     // monthly off-chain rebate and lag. Reading the newest month as if it were
@@ -313,7 +356,7 @@ export async function buildSignals(originBase: string): Promise<SignalsPayload> 
     }
 
     // Running buyback totals arrive pre-computed on the newest row.
-    const bd: any[] = Array.isArray(financials.buybackDaily) ? financials.buybackDaily : []
+    const bd = Array.isArray(financials.buybackDaily) ? financials.buybackDaily : []
     const lastBuyback = bd[bd.length - 1]
     if (lastBuyback) {
       push(
@@ -367,7 +410,7 @@ export async function buildSignals(originBase: string): Promise<SignalsPayload> 
 
   // ── Revenue growth vs the peer set ────────────────────────────────────────
   if (peerRevenue) {
-    const list: any[] = Array.isArray(peerRevenue.peers) ? peerRevenue.peers : []
+    const list = Array.isArray(peerRevenue.peers) ? peerRevenue.peers : []
     const sparkRow = list.find((p) => p?.isSpark)
 
     // SparkLend's interest income and the Liquidity Layer's are emitted

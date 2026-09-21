@@ -43,6 +43,15 @@ async function get<T>(path: string): Promise<T | null> {
   }
 }
 
+/** Only the fields this loader reads, so the routes stay free to return more. */
+interface EcosystemResp {
+  daily?: Array<{ date: number; sparklend?: number }>;
+  current?: { sparklend?: number; sll?: number; savings?: number; total?: number };
+}
+interface PeersResp {
+  daily?: Array<{ date: number; sparklend?: number }>;
+}
+
 interface Reserve {
   symbol: string; address: string; price: number;
   totalSupply: number; totalBorrow: number;
@@ -81,8 +90,8 @@ function toMarket(r: Reserve): Market {
 export const loadOverview = cache(async (): Promise<Overview> => {
   const [reserves, ecosystem, peers] = await Promise.all([
     get<Reserve[]>('/api/markets'),
-    get<any>('/api/ecosystem'),
-    get<any>('/api/peers'),
+    get<EcosystemResp>('/api/ecosystem'),
+    get<PeersResp>('/api/peers'),
   ]);
 
   const markets = (reserves ?? []).map(toMarket).filter((m) => m.supplied > 0).sort((a, b) => b.supplied - a.supplied);
@@ -91,8 +100,8 @@ export const loadOverview = cache(async (): Promise<Overview> => {
 
   // History: SparkLend supplied from the ecosystem series, borrows from the peer series. Both are
   // daily and keyed on the same UTC day, so they are joined rather than plotted on two scales.
-  const ecoDaily: any[] = Array.isArray(ecosystem?.daily) ? ecosystem.daily : [];
-  const peerDaily: any[] = Array.isArray(peers?.daily) ? peers.daily : [];
+  const ecoDaily = Array.isArray(ecosystem?.daily) ? ecosystem.daily : [];
+  const peerDaily = Array.isArray(peers?.daily) ? peers.daily : [];
   const borrowByDay = new Map<string, number>();
   for (const p of peerDaily) borrowByDay.set(isoDay(p.date), p.sparklend ?? 0);
 

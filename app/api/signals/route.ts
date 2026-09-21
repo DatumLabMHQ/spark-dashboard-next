@@ -28,9 +28,9 @@ export async function GET(request: Request) {
     return NextResponse.json(payload, {
       headers: { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600" },
     })
-  } catch (e: any) {
+  } catch (e: unknown) {
     return NextResponse.json(
-      { protocol: "spark", fetchedAt: Math.floor(Date.now() / 1000), metrics: [], error: e?.message ?? "failed" },
+      { protocol: "spark", fetchedAt: Math.floor(Date.now() / 1000), metrics: [], error: e instanceof Error ? e.message : "failed" },
       { status: 503 },
     )
   }

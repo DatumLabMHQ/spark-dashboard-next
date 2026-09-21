@@ -1,3 +1,10 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- vendored route handler.
+ * Copied verbatim from sparklend-dashboard so the Spark corrections travel with it (notably the
+ * first-party Block Analitica financials, which exist because DefiLlama's spark-liquidity-layer
+ * adapter under-captures its own source). These parse untyped third-party JSON; hand-retyping
+ * them here would risk a regression in numbers that are already verified in production.
+ * NEW code in this app must not use `any` - the kit's rule stands everywhere else.
+ */
 import { NextResponse } from "next/server"
 import {
   client,
