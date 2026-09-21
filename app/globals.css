@@ -116,3 +116,8 @@
 .recharts-cartesian-grid line, .recharts-polar-grid line, .recharts-polar-grid path, .recharts-polar-grid circle, .recharts-polar-grid polygon { stroke: var(--line); }
 .recharts-radial-bar-background-sector { fill: var(--bg-2); }
 .recharts-surface, .recharts-layer, .recharts-sector { outline: none; }
+
+/* The sign-in gate blurs in CSS, never in the server's HTML. The gate marks a gated page with
+   nothing at all, and an inline script decides from the reader's own URL and browser, before the first paint,
+   whether <html> is locked. Nothing about the gate is ever baked into a page the server caches. */
+html[data-gate='locked'] [data-slot='page'] { filter: blur(5px); opacity: 0.6; pointer-events: none; user-select: none; }

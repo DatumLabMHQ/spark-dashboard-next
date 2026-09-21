@@ -46,14 +46,47 @@ test('every page in the sidebar renders clean, and the first row of each table o
   }
 });
 
-test('the overview is open and every other page sits behind the sign-in gate', async ({ page }) => {
+test('the overview is open, the rest gates, and signing in holds', async ({ page, request }) => {
   await page.goto('/');
-  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.getByRole('dialog'), 'overview opens without a dialog').toHaveCount(0);
   const nav = await page.$$eval('[data-slot=sidebar-menu-button][href^="/"]', (as) => as.map((a) => a.getAttribute('href') as string).filter((h) => h !== '/'));
   if (!nav.length) return;
+  // The server must never ship a page blurred or inert: a page that fails to hydrate stays readable,
+  // and a signed-in reader is never asked again by HTML that was rendered before anyone signed in.
+  for (const path of ['/', nav[0]]) {
+    const html = await (await request.get(path)).text();
+    expect(html, `${path} server HTML renders the page open`).not.toMatch(/data-slot="page"[^>]*(inert|blur)/);
+    expect(html, `${path} server HTML carries no gate state`).not.toMatch(/data-gate-scope|data-gate=/);
+  }
+  // A gated page asks, and asks over a page that is present but inert.
   await page.goto(nav[0]);
   await expect(page.getByRole('dialog').getByRole('heading', { name: /Sign in to open the full dashboard/i })).toBeVisible();
   await expect(page.locator('main div[inert]')).toHaveCount(1);
+  expect(await page.evaluate(() => document.documentElement.dataset.gate), 'a locked reader on a gated page').toBe('locked');
+  expect(await page.$eval('[data-slot=page]', (e) => getComputedStyle(e).filter), 'the page is blurred while locked').toContain('blur');
+  // Sign in for real, without putting a test lead on the list.
+  await page.route('**/api/gate', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' }));
+  await page.getByLabel('Full name').fill('Ada Lovelace');
+  await page.getByLabel('Email').fill('ada@example.com');
+  await page.getByLabel('What you do').selectOption('Analyst');
+  await page.getByRole('button', { name: 'Open the dashboard' }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  // And it holds: through a link, a reload, a fresh load, and back to the overview.
+  const open = async (where: string) => {
+    await expect(page.getByRole('dialog'), `${where}: no dialog`).toHaveCount(0);
+    await expect(page.locator('div[inert]'), `${where}: nothing inert`).toHaveCount(0);
+    expect(await page.evaluate(() => document.documentElement.dataset.gate), `${where}: flag`).toBe('open');
+    expect(await page.$eval('[data-slot=page]', (e) => getComputedStyle(e).filter), `${where}: not blurred`).toBe('none');
+  };
+  await open('after signing in');
+  await page.click(`[data-slot=sidebar-menu-button][href="${nav[nav.length - 1]}"]`);
+  await open('after a link');
+  await page.reload();
+  await open('after a reload');
+  await page.goto(nav[0]);
+  await open('after a fresh load');
+  await page.goto('/');
+  await open('back on the overview');
 });
 
 test('phone width: no horizontal scroll on the overview', async ({ page }) => {

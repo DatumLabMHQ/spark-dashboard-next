@@ -12,7 +12,17 @@ const RISK_CLASS: Record<Market['risk'], string> = { safe: 'text-(--green)', mod
 const LABELS: Record<string, string> = { collateral: 'Market', protocol: 'Protocol', chain: 'Chain', supplied: 'Supplied', borrowed: 'Borrowed', utilization: 'Utilisation', lltv: 'LLTV', supply_apy: 'Supply APY', borrow_apy: 'Borrow APY' };
 const NUMERIC = ['supplied', 'borrowed', 'utilization', 'lltv', 'supply_apy', 'borrow_apy'];
 
-const columns = defineColumns<Market>((col) => [
+/**
+ * Columns a dashboard may drop. Not every lending protocol has every field: Euler's EVK vaults
+ * set a different LTV per accepted collateral so no single LLTV exists, and Fluid publishes
+ * rates per asset across venues rather than per vault. Rendering those as n/a is worse than
+ * not offering the column, so a dashboard names what it cannot fill.
+ *
+ * `collateral` is not droppable - it is the row's identity and its link.
+ */
+export type DroppableColumn = 'protocol' | 'chain' | 'supplied' | 'borrowed' | 'utilization' | 'lltv' | 'supply_apy' | 'borrow_apy';
+
+const allColumns = defineColumns<Market>((col) => [
   col.accessor('collateral', {
     header: 'Market', enableHiding: false,
     cell: ({ row }) => (
@@ -37,9 +47,29 @@ const columns = defineColumns<Market>((col) => [
 
 const search = (m: Market, q: string) => `${m.collateral} ${m.loan} ${m.protocol} ${m.chain}`.toLowerCase().includes(q);
 
-export function MarketsTable({ data, title, caption, pageSize = 10 }: { data: Market[]; title: string; caption: React.ReactNode; pageSize?: number }) {
+export function MarketsTable({
+  data,
+  title,
+  caption,
+  pageSize = 10,
+  hideColumns,
+}: {
+  data: Market[];
+  title: string;
+  caption: React.ReactNode;
+  pageSize?: number;
+  /** Columns this protocol cannot fill. They are removed rather than shown as n/a. */
+  hideColumns?: DroppableColumn[];
+}) {
+  const drop = new Set<string>(hideColumns ?? []);
+  // Accessor columns carry `accessorKey`, not `id`, so matching on `id` alone silently drops
+  // nothing and the column renders n/a down its whole length.
+  const keyOf = (c: (typeof allColumns)[number]) =>
+    String(c.id ?? (c as { accessorKey?: string }).accessorKey ?? '');
+  const columns = drop.size ? allColumns.filter((c) => !drop.has(keyOf(c))) : allColumns;
+  const numeric = NUMERIC.filter((n) => !drop.has(n));
   return (
     <DataTable<Market> rows={data} columns={columns} title={title} caption={caption} getRowId={(m) => m.id} rowHref={(m) => `/markets/${m.id}`}
-      search={search} searchPlaceholder="Filter markets" numeric={NUMERIC} labels={LABELS} initialSort={[{ id: 'supplied', desc: true }]} pageSize={pageSize} noun="market" empty="No markets match." />
+      search={search} searchPlaceholder="Filter markets" numeric={numeric} labels={LABELS} initialSort={[{ id: 'supplied', desc: true }]} pageSize={pageSize} noun="market" empty="No markets match." />
   );
 }
