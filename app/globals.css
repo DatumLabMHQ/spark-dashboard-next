@@ -1,0 +1,118 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* ─────────────────────────────────────────────────────────────────────
+   Datum design system. This file is tokens only. First the Datum names
+   (--bg, --surface, --fg, --chart-n, --chain-*, --brand-blue), then the
+   shadcn/ui variables mapped onto them, so every shadcn component and
+   chart wears the Datum look with no per-component CSS. The values are
+   datumlab.xyz's design system v2 (sapphire, navy, cool neutrals): the
+   dashboards and the site are one brand. Layout and components are
+   Tailwind utilities in the .tsx files; there are no custom classes here
+   on purpose. One aesthetic: Geist for text and numbers (tabular figures),
+   Source Serif 4 for the one display line on a page, sentence case,
+   colour for data rather than chrome, light and dark through the tokens.
+   ───────────────────────────────────────────────────────────────────── */
+:root {
+  /* Brand ramps, the same in both themes (site: --sapphire-*, --navy-*, --neutral-*). */
+  --sapphire-50: #EEF2FF; --sapphire-100: #DEE6FE; --sapphire-200: #C2CFFD; --sapphire-300: #9DB0FB; --sapphire-400: #7088F9;
+  --sapphire-500: #4A6CF7; --sapphire-600: #2E4FE0; --sapphire-700: #233EB8; --sapphire-900: #1B2C6E;
+  --navy-500: #1320A2; --navy-700: #000B78; --navy-900: #000640;
+  --neutral-0: #FFFFFF; --neutral-25: #FAFBFC; --neutral-50: #F5F7FA; --neutral-100: #ECEFF4; --neutral-200: #DDE2EB; --neutral-300: #C4CCD9;
+  --neutral-400: #9AA4B7; --neutral-500: #6B7688; --neutral-600: #4E5868; --neutral-900: #161A24; --neutral-950: #0B0E16;
+
+  /* Light: Platinum page, white surfaces, cool grey text. */
+  --bg: var(--neutral-50); --bg-2: var(--neutral-100); --surface: var(--neutral-0); --surface-2: var(--neutral-25);
+  --fg: var(--neutral-900); --fg-muted: var(--neutral-500); --fg-dim: var(--neutral-400);
+  --line: var(--neutral-200); --line-strong: var(--neutral-300); --hover: var(--neutral-100);
+
+  --brand-blue: var(--sapphire-500);
+  --green: #1FA463; --green-soft: rgba(31, 164, 99, 0.12);
+  --red: #E5484D; --red-soft: rgba(229, 72, 77, 0.10);
+  --yellow: #F59E0B; --yellow-soft: rgba(245, 158, 11, 0.14);
+  --blue: var(--sapphire-500); --purple: #7C5CE0; --cyan: #0EA5E9; --orange: #FF6B35;
+
+  /* Chart series, in the site's order: sapphire, light sapphire, cyan, amber, green, then navy, red, grey. */
+  --chart-1: var(--sapphire-500); --chart-2: var(--sapphire-300); --chart-3: #0EA5E9; --chart-4: #F59E0B;
+  --chart-5: #1FA463; --chart-6: var(--navy-500); --chart-7: #E5484D; --chart-8: var(--neutral-500);
+
+  /* Chain brand colours, the same in both themes. */
+  --chain-ethereum: #627EEA; --chain-base: #0052FF; --chain-arbitrum: #28A0F0; --chain-avalanche: #E84142;
+  --chain-plume: #C8A973; --chain-binance: #F0B90B; --chain-optimism: #FF0420;
+
+  --shadow-sm: 0 1px 2px rgba(11, 14, 22, 0.06);
+  --shadow-md: 0 4px 12px rgba(11, 14, 22, 0.08), 0 2px 4px rgba(11, 14, 22, 0.04);
+  --shadow-lg: 0 12px 28px rgba(11, 14, 22, 0.12), 0 4px 8px rgba(11, 14, 22, 0.05);
+  --radius: 12px; --panel-pad: 22px; --grid-gap: 18px; --max: 1280px;
+
+  /* shadcn/ui variables on the tokens above (the site maps its palette the same way) */
+  --background: var(--bg); --foreground: var(--fg);
+  --card: var(--surface); --card-foreground: var(--fg);
+  --popover: var(--surface); --popover-foreground: var(--fg);
+  --primary: var(--sapphire-500); --primary-foreground: var(--neutral-0);
+  --secondary: var(--bg-2); --secondary-foreground: var(--fg);
+  --muted: var(--bg-2); --muted-foreground: var(--fg-muted);
+  --accent: var(--sapphire-50); --accent-foreground: var(--sapphire-700);
+  --destructive: var(--red);
+  --border: var(--line); --input: var(--line-strong); --ring: rgba(74, 108, 247, 0.5);
+  --sidebar: var(--surface); --sidebar-foreground: var(--fg); --sidebar-primary: var(--sapphire-500); --sidebar-primary-foreground: var(--neutral-0);
+  --sidebar-accent: var(--sapphire-50); --sidebar-accent-foreground: var(--sapphire-700); --sidebar-border: var(--line); --sidebar-ring: rgba(74, 108, 247, 0.5);
+}
+.dark {
+  /* Dark: the brand navy, not a grey. Surfaces step up in the same hue; text is the light neutral. */
+  --bg: #050826; --bg-2: #0C1140; --surface: #0A0E35; --surface-2: #101649;
+  --fg: #EEF2FF; --fg-muted: #A3AEC8; --fg-dim: #6B7688;
+  --line: rgba(157, 176, 251, 0.14); --line-strong: rgba(157, 176, 251, 0.26); --hover: rgba(157, 176, 251, 0.07);
+  --green: #34C77B; --green-soft: rgba(52, 199, 123, 0.16);
+  --red: #F26A6E; --red-soft: rgba(242, 106, 110, 0.16);
+  --yellow: #FBBF24; --yellow-soft: rgba(251, 191, 36, 0.18);
+  --chart-2: var(--sapphire-300); --chart-6: var(--sapphire-400); --chart-8: var(--neutral-400);
+  --primary: var(--sapphire-400); --primary-foreground: var(--navy-900);
+  --accent: rgba(74, 108, 247, 0.18); --accent-foreground: var(--sapphire-200);
+  --sidebar-primary: var(--sapphire-400); --sidebar-primary-foreground: var(--navy-900);
+  --sidebar-accent: rgba(74, 108, 247, 0.18); --sidebar-accent-foreground: var(--sapphire-200);
+  --shadow-sm: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-md: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 4px 12px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 20px 60px rgba(0, 0, 0, 0.7);
+}
+
+@theme inline {
+  --color-background: var(--background); --color-foreground: var(--foreground);
+  --color-card: var(--card); --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover); --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary); --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary); --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted); --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent); --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border); --color-input: var(--input); --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1); --color-chart-2: var(--chart-2); --color-chart-3: var(--chart-3); --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5); --color-chart-6: var(--chart-6); --color-chart-7: var(--chart-7); --color-chart-8: var(--chart-8);
+  --color-sidebar: var(--sidebar); --color-sidebar-foreground: var(--sidebar-foreground); --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground); --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground); --color-sidebar-border: var(--sidebar-border); --color-sidebar-ring: var(--sidebar-ring);
+  --font-sans: var(--font-geist), "Geist", ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--font-sans);
+  --font-serif: var(--font-source-serif), "Source Serif 4", Georgia, serif;
+  --font-mono: var(--font-geist-mono), "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --radius-sm: calc(var(--radius) * 0.6); --radius-md: calc(var(--radius) * 0.8); --radius-lg: var(--radius); --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8); --radius-3xl: calc(var(--radius) * 2.2); --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+@layer base {
+  * { @apply border-border outline-ring/50; }
+  html { color-scheme: light; }
+  html.dark { color-scheme: dark; }
+  body { @apply bg-background text-foreground; font-family: var(--font-sans); font-size: 14px; line-height: 1.5; font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased; }
+  a { color: inherit; text-decoration: none; }
+  code, .mono { font-family: var(--font-mono); font-size: 0.92em; }
+}
+
+/* Recharts 3.10 renders axis ticks under *-tick-value, which the shadcn wrapper's selector misses. */
+.recharts-cartesian-axis-tick-value, .recharts-polar-angle-axis-tick-value, .recharts-polar-radius-axis-tick-value { fill: var(--fg-muted); font-size: 11px; }
+.recharts-label-list text, text.recharts-label { fill: var(--fg-muted); font-size: 11px; }
+.recharts-cartesian-grid line, .recharts-polar-grid line, .recharts-polar-grid path, .recharts-polar-grid circle, .recharts-polar-grid polygon { stroke: var(--line); }
+.recharts-radial-bar-background-sector { fill: var(--bg-2); }
+.recharts-surface, .recharts-layer, .recharts-sector { outline: none; }
