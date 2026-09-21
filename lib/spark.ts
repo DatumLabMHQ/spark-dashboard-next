@@ -56,6 +56,8 @@ interface Reserve {
   symbol: string; address: string; price: number;
   totalSupply: number; totalBorrow: number;
   supplyAPY: number; borrowAPY: number; utilization: number;
+  /** Basis points from the reserve config, already divided by 100 by the route. */
+  ltv: number; liquidationThreshold: number;
 }
 
 function toMarket(r: Reserve): Market {
@@ -77,10 +79,15 @@ function toMarket(r: Reserve): Market {
     utilization: util,
     supply_apy: r.supplyAPY ?? 0,
     borrow_apy: r.borrowAPY ?? 0,
-    // The markets route serves `ltv` as 0 and `liquidationThreshold` unscaled (DAI reads 0.01),
-    // so neither is a publishable risk parameter. Passed undefined so the table reads n/a rather
-    // than asserting a 0% liquidation threshold on a live lending market.
-    lltv: undefined as unknown as number,
+    // LLTV is the LIQUIDATION loan-to-value, so it maps to liquidationThreshold, not ltv.
+    //
+    // An earlier version suppressed this column after reading only DAI, which shows ltv 0 and a
+    // 0.01 threshold. That is not a scaling bug: DAI is simply not collateral in SparkLend. The
+    // column is real and correct across the book (WETH 86, wstETH 84, WBTC 78, cbBTC 82).
+    //
+    // A reserve with no threshold is borrow-only, so LLTV does not apply to it and reads n/a.
+    // Printing 0% there would imply it liquidates at zero, which is a different claim entirely.
+    lltv: r.liquidationThreshold > 0 ? r.liquidationThreshold : (undefined as unknown as number),
     risk: risk(util),
     address: r.address,
     logos: { protocol: protocolLogo('sparklend'), chain: chainLogo('ethereum') },
