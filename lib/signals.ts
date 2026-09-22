@@ -17,7 +17,7 @@
  *
  * NOTE ON THE PUBLIC PATH: this app runs under basePath NEXT_PUBLIC_BASE_PATH
  * ("/sparklend" in production), so the Worker must call
- * https://sparklend-dashboard.vercel.app/sparklend/api/signals — not /api/signals.
+ * https://spark-dashboard-next.vercel.app/sparklend/api/signals, not /api/signals.
  */
 
 /** Public page a tweet should link to, not the raw deployment host. */
@@ -92,6 +92,101 @@ const num = (v: unknown): number | null =>
 interface TokenPoint {
   date: number
   tokens: Record<string, number>
+}
+
+/** One point on a daily series, for the change helpers below. */
+interface DayPoint {
+  t: number
+  v: number
+}
+
+/**
+ * Absolute change over a window, computed exactly as the Fluid and Euler feeds do: current
+ * minus the reading nearest to N days back, and null when the nearest reading is more than
+ * three days off the target.
+ *
+ * The semantics have to match those feeds or a cross-protocol rule ends up comparing two
+ * different things. Deltas are absolute and in the metric's own unit: USD for a book,
+ * percentage POINTS for a share. Never a percentage of itself.
+ */
+function changesOf(series: DayPoint[]): { change24h: number | null; change30d: number | null } {
+  if (!series.length) return { change24h: null, change30d: null }
+  const last = series[series.length - 1]
+  const at = (days: number): number | null => {
+    const target = last.t - days * 86_400
+    let best: DayPoint | null = null
+    let gap = Infinity
+    for (const point of series) {
+      const d = Math.abs(point.t - target)
+      if (d < gap) {
+        gap = d
+        best = point
+      }
+    }
+    return best && gap <= 3 * 86_400 ? best.v : null
+  }
+  const delta = (days: number) => {
+    const prior = at(days)
+    return prior == null ? null : last.v - prior
+  }
+  return { change24h: delta(1), change30d: delta(30) }
+}
+
+/**
+ * Lift a daily series out of one of the /api/* `daily` arrays. Rows missing either a
+ * timestamp or a finite value are dropped rather than zero-filled: a gap in the series is
+ * not a day the book was empty.
+ */
+function seriesOf<T extends { date?: number }>(
+  rows: T[] | undefined,
+  pick: (row: T) => number | null | undefined,
+): DayPoint[] {
+  if (!Array.isArray(rows)) return []
+  const out: DayPoint[] = []
+  for (const row of rows) {
+    const t = num(row?.date)
+    const v = num(pick(row))
+    if (t !== null && v !== null) out.push({ t, v })
+  }
+  return out.sort((a, b) => a.t - b.t)
+}
+
+/**
+ * The same for a series keyed by ISO date rather than a unix timestamp, dropping today's row.
+ *
+ * These are running totals that are still accumulating, so today's row is a partial day.
+ * Differencing against it reports a fraction of a day's flow as if it were a whole one, which
+ * reads as a slowdown that did not happen. Both endpoints therefore come off settled days.
+ */
+function settledIsoSeries<T extends { date?: string }>(
+  rows: T[] | undefined,
+  pick: (row: T) => number | null | undefined,
+): DayPoint[] {
+  if (!Array.isArray(rows)) return []
+  const today = new Date().toISOString().slice(0, 10)
+  const out: DayPoint[] = []
+  for (const row of rows) {
+    const day = typeof row?.date === "string" ? row.date.slice(0, 10) : null
+    if (!day || day >= today) continue
+    const t = Date.parse(`${day}T00:00:00Z`) / 1000
+    const v = num(pick(row))
+    if (Number.isFinite(t) && v !== null) out.push({ t, v })
+  }
+  return out.sort((a, b) => a.t - b.t)
+}
+
+/** The same, for the token-keyed book series, whose value is the sum across assets. */
+function bookSeries(points: TokenPoint[] | undefined): DayPoint[] {
+  if (!Array.isArray(points)) return []
+  const out: DayPoint[] = []
+  for (const p of points) {
+    const t = num(p?.date)
+    if (t === null) continue
+    let total = 0
+    for (const v of Object.values(p.tokens ?? {})) if (Number.isFinite(v)) total += v
+    out.push({ t, v: total })
+  }
+  return out.sort((a, b) => a.t - b.t)
 }
 
 /** The series point closest to `targetTs`, so a missing day does not abort the window. */
@@ -194,12 +289,27 @@ interface BuybacksResp {
   treasury?: { totalUSD?: number }
   threshold?: { cushionUSD?: number; cushionMonths?: number | null }
 }
+interface EcosystemDay {
+  date?: number
+  total?: number
+  savings?: number
+  sparklend?: number
+  sll?: number
+}
 interface EcosystemResp {
   current?: { total?: number; savings?: number; sparklend?: number; sll?: number }
+  daily?: EcosystemDay[]
+}
+/** One day of the six-venue Ethereum borrow book. Venues are keyed by slug, hence the index. */
+interface PeersDay {
+  date?: number
+  total?: number
+  sparkShare?: number
+  [venueSlug: string]: number | undefined
 }
 interface PeersResp {
   currentSparkShare?: number
-  daily?: Array<{ date?: number; sparklend?: number }>
+  daily?: PeersDay[]
   current?: Array<{ slug?: string; name?: string; borrow?: number; share?: number }>
 }
 interface PeerRevenueResp {
@@ -212,7 +322,7 @@ interface BookSide {
 }
 interface FinancialsResp {
   monthly?: MonthlyRow[]
-  buybackDaily?: Array<{ totalSpkBought?: number; totalUsdsSpent?: number }>
+  buybackDaily?: Array<{ date?: string; totalSpkBought?: number; totalUsdsSpent?: number }>
   meta?: { latestMonthIsPartial?: boolean }
 }
 interface SparkLendResp {
@@ -221,6 +331,7 @@ interface SparkLendResp {
 }
 interface SpkTokenResp {
   current?: { price?: number; mcap?: number }
+  daily?: Array<{ date?: number; price?: number; mcap?: number }>
 }
 
 export async function buildSignals(originBase: string): Promise<SignalsPayload> {
@@ -242,19 +353,35 @@ export async function buildSignals(originBase: string): Promise<SignalsPayload> 
     label: string,
     value: number | null,
     unit: SignalUnit,
-    opts: { cumulative?: boolean; href?: string } = {},
+    opts: { cumulative?: boolean; href?: string; series?: DayPoint[] } = {},
   ) => {
     if (value == null) return
-    metrics.push({ key, label, value, unit, ...opts })
+    const { series, ...rest } = opts
+    // A metric with a daily series behind it carries its own 24h and 30d move, so a rule
+    // does not have to wait for the Worker's store to fill up before it can say anything.
+    metrics.push({ key, label, value, unit, ...rest, ...(series ? changesOf(series) : {}) })
   }
 
   // ── Ecosystem TVL and its product split ───────────────────────────────────
   if (ecosystem?.current) {
     const c = ecosystem.current
-    push("spark.ecosystem.tvl", "Spark ecosystem TVL", num(c.total), "usd", { href: PUBLIC_BASE })
-    push("spark.ecosystem.savings", "Spark Savings TVL", num(c.savings), "usd", { href: PUBLIC_BASE })
-    push("spark.ecosystem.sparklend", "SparkLend supplied", num(c.sparklend), "usd", { href: PUBLIC_BASE })
-    push("spark.ecosystem.sll", "Spark Liquidity Layer TVL", num(c.sll), "usd", { href: PUBLIC_BASE })
+    const eco = ecosystem.daily
+    push("spark.ecosystem.tvl", "Spark ecosystem TVL", num(c.total), "usd", {
+      href: PUBLIC_BASE,
+      series: seriesOf(eco, (r) => r.total),
+    })
+    push("spark.ecosystem.savings", "Spark Savings TVL", num(c.savings), "usd", {
+      href: `${PUBLIC_BASE}/savings`,
+      series: seriesOf(eco, (r) => r.savings),
+    })
+    push("spark.ecosystem.sparklend", "SparkLend supplied", num(c.sparklend), "usd", {
+      href: PUBLIC_BASE,
+      series: seriesOf(eco, (r) => r.sparklend),
+    })
+    push("spark.ecosystem.sll", "Spark Liquidity Layer TVL", num(c.sll), "usd", {
+      href: `${PUBLIC_BASE}/liquidity-layer`,
+      series: seriesOf(eco, (r) => r.sll),
+    })
   } else {
     degraded.push("ecosystem: unavailable")
   }
@@ -268,11 +395,12 @@ export async function buildSignals(originBase: string): Promise<SignalsPayload> 
       "Spark share of Ethereum lending",
       num(peers.currentSparkShare),
       "pct",
-      { href: PUBLIC_BASE },
+      { href: PUBLIC_BASE, series: seriesOf(peers.daily, (r) => r.sparkShare) },
     )
     const last = Array.isArray(peers.daily) ? peers.daily[peers.daily.length - 1] : null
     push("spark.lending.borrows_ethereum", "SparkLend Ethereum borrows", num(last?.sparklend), "usd", {
       href: PUBLIC_BASE,
+      series: seriesOf(peers.daily, (r) => r.sparklend),
     })
 
     // Cross-venue Ethereum borrow book, emitted under a NEUTRAL `market.*`
@@ -288,11 +416,20 @@ export async function buildSignals(originBase: string): Promise<SignalsPayload> 
     for (const row of current) {
       if (!row?.slug) continue
       const id = String(row.slug).replace(/-/g, "_")
+      // The daily rows key each venue by its raw slug, and share is derived from that day's
+      // own total rather than today's, so a share move reflects that day's market.
+      const slug = String(row.slug)
       push(`market.ethereum_borrows.${id}`, `${row.name} Ethereum borrows`, num(row.borrow), "usd", {
         href: PUBLIC_BASE,
+        series: seriesOf(peers.daily, (r) => r[slug]),
       })
       push(`market.ethereum_share.${id}`, `${row.name} share of Ethereum lending`, num(row.share), "pct", {
         href: PUBLIC_BASE,
+        series: seriesOf(peers.daily, (r) => {
+          const v = num(r[slug])
+          const total = num(r.total)
+          return v !== null && total !== null && total > 0 ? (v / total) * 100 : null
+        }),
       })
     }
   } else {
@@ -302,17 +439,17 @@ export async function buildSignals(originBase: string): Promise<SignalsPayload> 
   // ── Treasury and buyback runway ───────────────────────────────────────────
   if (buybacks) {
     push("spark.treasury.spendable_usd", "Spark spendable treasury", num(buybacks.treasury?.totalUSD), "usd", {
-      href: `${PUBLIC_BASE}/spk-token`,
+      href: `${PUBLIC_BASE}/spk`,
     })
     push("spark.buyback.cushion_usd", "Buyback cushion above threshold", num(buybacks.threshold?.cushionUSD), "usd", {
-      href: `${PUBLIC_BASE}/spk-token`,
+      href: `${PUBLIC_BASE}/spk`,
     })
     push(
       "spark.buyback.cushion_months",
       "Buyback runway, months",
       num(buybacks.threshold?.cushionMonths),
       "count",
-      { href: `${PUBLIC_BASE}/spk-token` },
+      { href: `${PUBLIC_BASE}/spk` },
     )
   } else {
     degraded.push("buybacks: unavailable")
@@ -320,8 +457,14 @@ export async function buildSignals(originBase: string): Promise<SignalsPayload> 
 
   // ── SPK ───────────────────────────────────────────────────────────────────
   if (spkToken?.current) {
-    push("spark.spk.price", "SPK price", num(spkToken.current.price), "usd", { href: `${PUBLIC_BASE}/spk-token` })
-    push("spark.spk.mcap", "SPK market cap", num(spkToken.current.mcap), "usd", { href: `${PUBLIC_BASE}/spk-token` })
+    push("spark.spk.price", "SPK price", num(spkToken.current.price), "usd", {
+      href: `${PUBLIC_BASE}/spk`,
+      series: seriesOf(spkToken.daily, (r) => r.price),
+    })
+    push("spark.spk.mcap", "SPK market cap", num(spkToken.current.mcap), "usd", {
+      href: `${PUBLIC_BASE}/spk`,
+      series: seriesOf(spkToken.daily, (r) => r.mcap),
+    })
   } else {
     degraded.push("spk-token: unavailable")
   }
@@ -359,19 +502,29 @@ export async function buildSignals(originBase: string): Promise<SignalsPayload> 
     const bd = Array.isArray(financials.buybackDaily) ? financials.buybackDaily : []
     const lastBuyback = bd[bd.length - 1]
     if (lastBuyback) {
+      // The change fields on a running total are the flow: how much was bought back in the
+      // last day and the last thirty. `value` stays the live cumulative, including today.
       push(
         "spark.buyback.spk_bought_cumulative",
         "SPK bought back, cumulative",
         num(lastBuyback.totalSpkBought),
         "count",
-        { cumulative: true, href: `${PUBLIC_BASE}/spk-token` },
+        {
+          cumulative: true,
+          href: `${PUBLIC_BASE}/spk`,
+          series: settledIsoSeries(bd, (r) => r.totalSpkBought),
+        },
       )
       push(
         "spark.buyback.usds_spent_cumulative",
         "USDS spent on buybacks, cumulative",
         num(lastBuyback.totalUsdsSpent),
         "usd",
-        { cumulative: true, href: `${PUBLIC_BASE}/spk-token` },
+        {
+          cumulative: true,
+          href: `${PUBLIC_BASE}/spk`,
+          series: settledIsoSeries(bd, (r) => r.totalUsdsSpent),
+        },
       )
     }
   } else {
@@ -387,6 +540,9 @@ export async function buildSignals(originBase: string): Promise<SignalsPayload> 
       ["borrowed", book.borrow, "SparkLend Ethereum borrowed", `${PUBLIC_BASE}`],
       ["supplied", book.supply, "SparkLend Ethereum supplied", `${PUBLIC_BASE}`],
     ] as const) {
+      // Both windows describe the same book, so they share one daily aggregate and
+      // therefore one 24h and 30d move. Only the decomposition differs.
+      const moves = changesOf(bookSeries(series?.tokensInUsd))
       for (const windowDays of [30, 180]) {
         const d = decompose(series?.tokensInUsd, series?.tokens, windowDays)
         if (!d) continue
@@ -397,6 +553,7 @@ export async function buildSignals(originBase: string): Promise<SignalsPayload> 
           label,
           value: d.value,
           unit: "usd",
+          ...moves,
           windowDays,
           prior: d.prior,
           components: d.components,
