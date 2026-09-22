@@ -11,11 +11,8 @@
 
 import { cache } from 'react';
 import type { Row } from '@/components/charts';
-
-/** This app's own API. Resolved the same way as lib/spark.ts. */
-const API =
-  process.env.SPARK_API_BASE ??
-  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3022');
+// This app's own API, origin and basePath resolved at runtime. See lib/api-base.ts.
+import { SPARK_API as API } from './api-base';
 
 async function get<T>(path: string): Promise<T | null> {
   try {

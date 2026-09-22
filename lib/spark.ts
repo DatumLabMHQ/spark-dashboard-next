@@ -16,18 +16,10 @@
 import { cache } from 'react';
 import { chainLogo, protocolLogo } from './chains';
 import type { Market, MarketDetail, Overview, Point, Share } from './types';
-
-/**
- * This app's OWN API routes. The Spark route handlers were copied in so the dashboard stands on
- * its own; it no longer depends on the old sparklend-dashboard deployment.
- *
- * Server-side fetch needs an absolute URL, so the origin comes from VERCEL_URL in a deployment
- * and falls back to the local dev port. SPARK_API_BASE overrides both, which is how you would
- * temporarily point this at another instance.
- */
-const SPARK_API =
-  process.env.SPARK_API_BASE ??
-  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3022');
+// This app's OWN API routes: the Spark route handlers were copied in, so the dashboard stands on
+// its own and the old sparklend-dashboard deployment can be retired. See lib/api-base.ts for why
+// the origin and the path prefix are both resolved at runtime rather than hardcoded.
+import { SPARK_API } from './api-base';
 
 const risk = (u: number): Market['risk'] => (u > 85 ? 'high' : u > 70 ? 'moderate' : 'safe');
 const isoDay = (unixSeconds: number) => new Date(unixSeconds * 1000).toISOString().slice(0, 10);

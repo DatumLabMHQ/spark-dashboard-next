@@ -22,6 +22,11 @@ import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
 const KEY = 'datum_gate_unlocked';
 // What the reader does, as a list to pick from rather than a box to type in. Sent to the list as the Occupation field.
 const OCCUPATIONS = ['Analyst', 'Protocol founder or team', 'Investor or allocator', 'Trader', 'Researcher', 'Developer or engineer', 'Risk manager', 'Curator or vault manager', 'Journalist or writer', 'Student', 'Other'];
+// When the app is served under a basePath (Spark sits at www.datumlab.xyz/sparklend, behind a
+// same-origin rewrite), location.pathname carries that prefix but usePathname() does not, and a raw
+// fetch() is not rewritten either. The free list below is written without the prefix, so the boot
+// script strips it before matching; get this wrong and the open overview reads as locked.
+const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH || '';
 const GATE: { enabled: boolean; free: string[] } = { enabled: true, free: ['/'], ...((config as { gate?: { enabled?: boolean; free?: string[] } }).gate ?? {}) };
 // A path we cannot read is free. usePathname() is typed as a string but comes back empty when Next
 // re-renders a static page on the server to refresh it, and a gate must never lock a page it cannot name.
@@ -45,7 +50,7 @@ const flag = (unlocked: boolean, path: string | null | undefined) => {
 };
 // Runs while the browser parses the page, before anything is painted, and fails open on any error. It reads
 // location.pathname rather than the router, so a page served from the cache is judged by the reader's own URL.
-const BOOT = `(function(){try{var k=false,c=false;try{k=localStorage.getItem('${KEY}')==='1'}catch(e){}try{c=/(^|;\\s*)datum_gate=1(;|$)/.test(document.cookie)}catch(e){}var p=location.pathname.replace(/\\/$/,'')||'/';var F=${JSON.stringify(GATE.free)};var f=F.some(function(x){return x==='/'?p==='/':p===x||p.indexOf(x+'/')===0});document.documentElement.dataset.gate=(k||c||f)?'open':'locked'}catch(e){document.documentElement.dataset.gate='open'}})()`;
+const BOOT = `(function(){try{var k=false,c=false;try{k=localStorage.getItem('${KEY}')==='1'}catch(e){}try{c=/(^|;\\s*)datum_gate=1(;|$)/.test(document.cookie)}catch(e){}var B=${JSON.stringify(BASE_PATH)};var p=location.pathname;if(B&&p.indexOf(B)===0)p=p.slice(B.length);p=p.replace(/\\/$/,'')||'/';var F=${JSON.stringify(GATE.free)};var f=F.some(function(x){return x==='/'?p==='/':p===x||p.indexOf(x+'/')===0});document.documentElement.dataset.gate=(k||c||f)?'open':'locked'}catch(e){document.documentElement.dataset.gate='open'}})()`;
 // useLayoutEffect on the browser so a client-side navigation re-judges the page before it is painted.
 const useIsoLayoutEffect = typeof window === 'undefined' ? React.useEffect : React.useLayoutEffect;
 
@@ -98,7 +103,7 @@ function GateDialog({ open, required }: { open: boolean; required: boolean }) {
     if (status === 'loading') return;
     setStatus('loading'); setError('');
     try {
-      const res = await fetch('/api/gate', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...form, source: config.slug, path }) });
+      const res = await fetch(`${BASE_PATH}/api/gate`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...form, source: config.slug, path }) });
       if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || 'Something went wrong'); }
       setStatus('idle'); g.unlock();
     } catch (err) { setStatus('error'); setError(err instanceof Error ? err.message : 'Something went wrong'); }
