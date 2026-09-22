@@ -7,3 +7,6 @@ node_modules
 # playwright
 test-results/
 playwright-report/
+
+# runtime scan caches (regenerated; the committed seed is data/liquidation-events-seed.json)
+.liquidation-*.json

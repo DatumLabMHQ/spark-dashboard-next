@@ -52,6 +52,12 @@ export const config = {
   nav: [
     { href: '/', label: 'Overview' },
     { href: '/markets', label: 'Markets' },
+    { href: '/book', label: 'Loan book' },
+    { href: '/financials', label: 'Financials' },
+    { href: '/liquidity-layer', label: 'Liquidity Layer' },
+    { href: '/savings', label: 'Savings' },
+    { href: '/liquidations', label: 'Liquidations' },
+    { href: '/spk', label: 'SPK' },
     { href: '/methodology', label: 'Methodology' },
   ],
   // Shown on the methodology page. Keep them honest: what is read, how often, what it excludes.
