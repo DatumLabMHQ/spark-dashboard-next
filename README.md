@@ -1,5 +1,20 @@
 # Spark Research Terminal
 
+The SparkLend / Spark Liquidity Layer / Savings research terminal, rebuilt on
+[datum-databuild-kit](https://github.com/DatumLabMHQ/datum-databuild-kit).
+
+Served at **https://www.datumlab.xyz/sparklend**, through a same-origin rewrite in the
+DatumLabs site rather than an iframe. It therefore runs under `basePath` `/sparklend`, set
+via `NEXT_PUBLIC_BASE_PATH` on Vercel production and left unset for local `next dev`.
+
+The overview is open to everyone; every other page is behind the sign-in gate.
+
+Pushing to `master` deploys to production.
+
+---
+
+# Spark Research Terminal
+
 Spark ecosystem, SparkLend, the Liquidity Layer and SPK, built by Datum Labs.
 
 Built with [datum-databuild-kit](https://github.com/DatumLabMHQ/datum-databuild-kit). Every number comes from the
