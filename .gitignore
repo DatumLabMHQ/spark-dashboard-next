@@ -10,3 +10,6 @@ playwright-report/
 
 # runtime scan caches (regenerated; the committed seed is data/liquidation-events-seed.json)
 .liquidation-*.json
+
+# incremental typecheck cache, ~1MB and churns on every build
+tsconfig.tsbuildinfo
