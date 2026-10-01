@@ -11,7 +11,8 @@
  * Locally `next dev` leaves NEXT_PUBLIC_BASE_PATH unset, so everything sits at the root.
  * SPARK_API_BASE overrides the origin, which is how you would point this at another instance.
  */
-export const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH || '';
+export { BASE_PATH } from './asset-path';
+import { BASE_PATH } from './asset-path';
 
 const ORIGIN =
   process.env.SPARK_API_BASE ??

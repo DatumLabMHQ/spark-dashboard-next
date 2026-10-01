@@ -1,3 +1,4 @@
+import { asset } from './asset-path';
 // Chain ids the platform stores, with a display name and a logo where one is public. Unknown ids
 // render as "Chain <id>" with an initials tile, so a new chain never breaks a page.
 const ICON = 'https://icons.llamao.fi/icons/chains';
@@ -16,6 +17,6 @@ const LOCAL_CHAINS = new Set(['ethereum', 'base', 'arbitrum', 'optimism', 'avala
 const LOCAL_PROTOCOLS = new Set(['aave', 'morpho-blue', 'compound-finance']);
 export const chainLogo = (id: number | string) => {
   const s = CHAINS[Number(id)]?.slug; if (!s) return undefined;
-  return LOCAL_CHAINS.has(s) ? `/brand/logos/chain-${s}.webp` : `${ICON}/rsz_${s.replace(/ /g, '%20')}.jpg`;
+  return LOCAL_CHAINS.has(s) ? asset(`/brand/logos/chain-${s}.webp`) : `${ICON}/rsz_${s.replace(/ /g, '%20')}.jpg`;
 };
-export const protocolLogo = (slug: string) => (LOCAL_PROTOCOLS.has(slug) ? `/brand/logos/${slug}.webp` : `https://icons.llamao.fi/icons/protocols/${slug}?w=48&h=48`);
+export const protocolLogo = (slug: string) => (LOCAL_PROTOCOLS.has(slug) ? asset(`/brand/logos/${slug}.webp`) : `https://icons.llamao.fi/icons/protocols/${slug}?w=48&h=48`);

@@ -3,6 +3,7 @@ import { Geist, Geist_Mono, Source_Serif_4 } from 'next/font/google';
 import './globals.css';
 import { config } from '@/datum.config';
 import { Providers } from '@/components/Providers';
+import { asset } from '@/lib/asset-path';
 
 // The same three faces as datumlab.xyz: Geist for text and numbers, Geist Mono for addresses and code,
 // Source Serif 4 for the one display line on a page (the question).
@@ -13,7 +14,13 @@ const serif = Source_Serif_4({ subsets: ['latin'], variable: '--font-source-seri
 export const metadata: Metadata = {
   title: { default: config.title, template: `%s · ${config.title}` },
   description: config.description,
-  icons: { icon: [{ url: '/brand/favicon-32.png', sizes: '32x32' }, { url: '/brand/favicon-64.png', sizes: '64x64' }], apple: '/brand/apple-touch-icon.png' },
+  icons: {
+    icon: [
+      { url: asset('/brand/favicon-32.png'), sizes: '32x32' },
+      { url: asset('/brand/favicon-64.png'), sizes: '64x64' },
+    ],
+    apple: asset('/brand/apple-touch-icon.png'),
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

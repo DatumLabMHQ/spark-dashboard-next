@@ -16,6 +16,7 @@ import {
   Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader, SidebarMenu, SidebarMenuAction,
   SidebarMenuBadge, SidebarMenuButton, SidebarMenuItem, SidebarMenuSub, SidebarMenuSubButton, SidebarMenuSubItem, SidebarRail,
 } from '@/components/ui/sidebar';
+import { asset } from '@/lib/asset-path';
 
 // Icons by route. A dashboard's own routes fall back to the grid icon; add them here when they recur.
 const ICONS: Record<string, React.ReactNode> = { '/': <SquaresFourIcon />, '/markets': <TableIcon />, '/vaults': <VaultIcon />, '/horizon': <BankIcon />, '/assets': <CoinsIcon />, '/curators': <UsersThreeIcon />, '/chains': <GlobeHemisphereWestIcon />, '/pools': <DropIcon />, '/reserves': <CoinsIcon />, '/tokens': <TagIcon />, '/flows': <ArrowsLeftRightIcon />, '/liquidations': <LightningIcon />, '/protocols': <StackIcon />, '/methodology': <BookOpenIcon /> };
@@ -30,7 +31,7 @@ export function AppSidebar({ badges = {}, subnav = {}, showKit = false, ...props
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" className="data-[slot=sidebar-menu-button]:p-1.5!" render={<Link href="/" />}>
-              <Image src="/brand/datum-mark.png" alt="" width={24} height={24} className="size-6 shrink-0 rounded-[6px]" priority />
+              <Image src={asset('/brand/datum-mark.png')} alt="" width={24} height={24} className="size-6 shrink-0 rounded-[6px]" priority />
               <span className="text-base font-semibold">datum<span className="text-(--brand-blue)">labs</span></span>
             </SidebarMenuButton>
           </SidebarMenuItem>
