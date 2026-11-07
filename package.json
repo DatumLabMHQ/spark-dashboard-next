@@ -11,7 +11,7 @@
     "check": "npm run typecheck && npm run lint && npm run build",
     "dev:platform": "sh -c 'set -a; . ~/.config/datum/.env; set +a; vite dev --port 3000'",
     "test:smoke": "playwright test",
-    "deploy": "vinext-cloudflare deploy",
+    "deploy": "NEXT_PUBLIC_BASE_PATH=/sparklend vinext-cloudflare deploy",
     "dev:next": "next dev",
     "build:next": "next build"
   },
