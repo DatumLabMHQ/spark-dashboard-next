@@ -17,7 +17,7 @@
  *
  * NOTE ON THE PUBLIC PATH: this app runs under basePath NEXT_PUBLIC_BASE_PATH
  * ("/sparklend" in production), so the Worker must call
- * https://spark-dashboard-next.vercel.app/sparklend/api/signals, not /api/signals.
+ * https://spark-dashboard-next.datumlabs.workers.dev/sparklend/api/signals, not /api/signals.
  */
 
 /** Public page a tweet should link to, not the raw deployment host. */

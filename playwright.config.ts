@@ -9,5 +9,5 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? 'github' : 'list',
   use: { baseURL, viewport: { width: 1360, height: 900 }, trace: 'retain-on-failure' },
-  webServer: process.env.CI ? { command: 'npm start -- -p 3030', url: baseURL, reuseExistingServer: false, timeout: 120_000 } : undefined,
+  webServer: process.env.CI ? { command: 'npm start -- --port 3030', url: baseURL, reuseExistingServer: false, timeout: 120_000 } : undefined,
 });
