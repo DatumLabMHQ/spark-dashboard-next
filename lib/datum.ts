@@ -1,6 +1,6 @@
 // Server-side client for datum-api. The key never reaches the browser: every read happens in a
 // server component or route handler. Responses are cached for five minutes per URL.
-const BASE = (process.env.DATUM_API_URL || 'https://datum-api-datumlabs1.vercel.app').replace(/\/$/, '');
+const BASE = (process.env.DATUM_API_URL || 'https://datum-api.datumlabs.workers.dev').replace(/\/$/, '');
 
 export const hasKey = () => Boolean(process.env.DATUM_API_KEY);
 
